@@ -1,152 +1,179 @@
-// ===================================================================
-// Jenkinsfile (CI + CD for 3-tier Node.js App on EKS)
-// ===================================================================
-
 pipeline {
     agent any
-
+    
     environment {
-        AWS_REGION         = 'us-west-2'
-        AWS_ACCOUNT_ID     = '889818960214'
-        ECR_REPO_NAME      = 'my-app-repo'
-        S3_BUCKET_NAME     = 'my-elb-logs-apxa7m1w'
-        
-        AWS_CREDENTIALS_ID = 'aws-credentials'
-        GITHUB_TOKEN_ID    = 'my-github-pat'
-        
-        IMAGE_TAG          = "${BUILD_NUMBER}"
-        BACKEND_IMAGE_URL  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:3tier-nodejs-backend-${IMAGE_TAG}"
-        FRONTEND_IMAGE_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:3tier-nodejs-frontend-${IMAGE_TAG}"
+        AWS_DEFAULT_REGION = 'us-west-2'
+        AWS_ACCOUNT_ID = '889818960214'
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+        FRONTEND_REPO = 'my-app-frontend'
+        BACKEND_REPO = 'my-app-backend'
+        SONAR_PROJECT_KEY = 'my-fullstack-app'
+        TRIVY_VERSION = 'latest'
     }
-
+    
     stages {
         stage('Checkout') {
             steps {
-                echo "🔄 Checking out code from branch: ${env.BRANCH_NAME}"
                 checkout scm
             }
         }
-
-        stage('Build, Scan & Push Images') {
-            parallel {
-                stage('Backend') {
-                    steps {
-                        dir('backend') {
-                            script {
-                                def backendImage = docker.build(env.BACKEND_IMAGE_URL, '.')
-
-                                docker.withRegistry("https://${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", "ecr:${env.AWS_REGION}:${AWS_CREDENTIALS_ID}") {
-                                    echo "Pushing Backend image to ECR..."
-                                    backendImage.push()
-
-                                    echo "Scanning Backend image with Trivy..."
-                                    sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${env.BACKEND_IMAGE_URL} > backend_scan_report.txt"
-                                }
-
-                                withAWS(credentials: AWS_CREDENTIALS_ID, region: env.AWS_REGION) {
-                                    script {
-                                        try {
-                                            sh "aws s3 cp backend_scan_report.txt s3://${env.S3_BUCKET_NAME}/scan-reports/backend-report-${env.IMAGE_TAG}.txt"
-                                            echo "✅ Backend scan report uploaded to S3"
-                                        } catch (Exception e) {
-                                            echo "⚠️ Failed to upload backend scan report to S3: ${e.getMessage()}"
-                                            echo "Scan report contents:"
-                                            sh "cat backend_scan_report.txt"
-                                        }
-                                    }
-                                }
-                            }
-                        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            sonar-scanner \
+                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                -Dsonar.sources=. \
+                                -Dsonar.exclusions=**/node_modules/**,**/target/**,**/*.jar \
+                                -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info \
+                                -Dsonar.coverage.exclusions=**/*.spec.js,**/*.test.js
+                        '''
                     }
                 }
-
-                stage('Frontend') {
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+        
+        stage('Install Dependencies') {
+            parallel {
+                stage('Frontend Dependencies') {
                     steps {
                         dir('frontend') {
-                            script {
-                                def frontendImage = docker.build(env.FRONTEND_IMAGE_URL, '.')
-
-                                docker.withRegistry("https://${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", "ecr:${env.AWS_REGION}:${AWS_CREDENTIALS_ID}") {
-                                    echo "Pushing Frontend image to ECR..."
-                                    frontendImage.push()
-
-                                    echo "Scanning Frontend image with Trivy..."
-                                    sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${env.FRONTEND_IMAGE_URL} > frontend_scan_report.txt"
-                                }
-
-                                withAWS(credentials: AWS_CREDENTIALS_ID, region: env.AWS_REGION) {
-                                    script {
-                                        try {
-                                            sh "aws s3 cp frontend_scan_report.txt s3://${env.S3_BUCKET_NAME}/scan-reports/frontend-report-${env.IMAGE_TAG}.txt"
-                                            echo "✅ Frontend scan report uploaded to S3"
-                                        } catch (Exception e) {
-                                            echo "⚠️ Failed to upload frontend scan report to S3: ${e.getMessage()}"
-                                            echo "Scan report contents:"
-                                            sh "cat frontend_scan_report.txt"
-                                        }
-                                    }
-                                }
+                            sh 'npm install'
+                            sh 'npm run test -- --coverage --watchAll=false'
+                        }
+                    }
+                }
+                stage('Backend Dependencies') {
+                    steps {
+                        dir('backend') {
+                            sh 'npm install'
+                            sh 'npm test'
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Build Docker Images') {
+            parallel {
+                stage('Build Frontend') {
+                    steps {
+                        script {
+                            dir('frontend') {
+                                sh """
+                                    docker build -t ${FRONTEND_REPO}:${BUILD_NUMBER} .
+                                    docker tag ${FRONTEND_REPO}:${BUILD_NUMBER} ${ECR_REGISTRY}/${FRONTEND_REPO}:${BUILD_NUMBER}
+                                    docker tag ${FRONTEND_REPO}:${BUILD_NUMBER} ${ECR_REGISTRY}/${FRONTEND_REPO}:latest
+                                """
+                            }
+                        }
+                    }
+                }
+                stage('Build Backend') {
+                    steps {
+                        script {
+                            dir('backend') {
+                                sh """
+                                    docker build -t ${BACKEND_REPO}:${BUILD_NUMBER} .
+                                    docker tag ${BACKEND_REPO}:${BUILD_NUMBER} ${ECR_REGISTRY}/${BACKEND_REPO}:${BUILD_NUMBER}
+                                    docker tag ${BACKEND_REPO}:${BUILD_NUMBER} ${ECR_REGISTRY}/${BACKEND_REPO}:latest
+                                """
                             }
                         }
                     }
                 }
             }
         }
-
-        stage('Update K8s Manifests') {
-            steps {
-                withCredentials([string(credentialsId: GITHUB_TOKEN_ID, variable: 'GITHUB_TOKEN')]) {
-                    sh 'git config user.email "jenkins@ci-cd.com"'
-                    sh 'git config user.name "Jenkins CI Bot"'
-                    
-                    echo "Updating backend deployment manifest..."
-                    sh "sed -i 's|image:.*|image: ${env.BACKEND_IMAGE_URL}|g' ./k8s/02-backend.yaml"
-
-                    echo "Updating frontend deployment manifest..."
-                    sh "sed -i 's|image:.*|image: ${env.FRONTEND_IMAGE_URL}|g' ./k8s/03-frontend.yaml"
-
-                    sh 'git remote set-url origin https://${GITHUB_TOKEN}@github.com/MostafaAssaff/3tier-react-app.git'
-                    
-                    sh 'git add ./k8s/02-backend.yaml ./k8s/03-frontend.yaml'
-                    sh "git commit -m 'Deploy: Update image tags for build #${BUILD_NUMBER}'"
-                    sh 'git push origin HEAD:main'
+        
+        stage('Security Scan with Trivy') {
+            parallel {
+                stage('Scan Frontend') {
+                    steps {
+                        sh """
+                            trivy image --format json --output frontend-scan.json ${FRONTEND_REPO}:${BUILD_NUMBER}
+                            trivy image --severity HIGH,CRITICAL --exit-code 1 ${FRONTEND_REPO}:${BUILD_NUMBER}
+                        """
+                        archiveArtifacts artifacts: 'frontend-scan.json', fingerprint: true
+                    }
+                }
+                stage('Scan Backend') {
+                    steps {
+                        sh """
+                            trivy image --format json --output backend-scan.json ${BACKEND_REPO}:${BUILD_NUMBER}
+                            trivy image --severity HIGH,CRITICAL --exit-code 1 ${BACKEND_REPO}:${BUILD_NUMBER}
+                        """
+                        archiveArtifacts artifacts: 'backend-scan.json', fingerprint: true
+                    }
                 }
             }
         }
-
-        stage('Deploy to EKS') {
+        
+        stage('Push to ECR') {
             steps {
-                withAWS(credentials: AWS_CREDENTIALS_ID, region: env.AWS_REGION) {
+                withCredentials([aws(credentialsId: 'aws-credentials', region: "${AWS_DEFAULT_REGION}")]) {
                     script {
-                        echo "⎈ Setting up kubeconfig for EKS..."
                         sh """
-                            aws eks update-kubeconfig --region ${env.AWS_REGION} --name my-eks-cluster
+                            # Login to ECR
+                            aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                            
+                            # Create repositories if they don't exist
+                            aws ecr describe-repositories --repository-names ${FRONTEND_REPO} || aws ecr create-repository --repository-name ${FRONTEND_REPO}
+                            aws ecr describe-repositories --repository-names ${BACKEND_REPO} || aws ecr create-repository --repository-name ${BACKEND_REPO}
+                            
+                            # Push images
+                            docker push ${ECR_REGISTRY}/${FRONTEND_REPO}:${BUILD_NUMBER}
+                            docker push ${ECR_REGISTRY}/${FRONTEND_REPO}:latest
+                            docker push ${ECR_REGISTRY}/${BACKEND_REPO}:${BUILD_NUMBER}
+                            docker push ${ECR_REGISTRY}/${BACKEND_REPO}:latest
                         """
-
-                        echo "🚀 Applying Kubernetes manifests..."
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy with Ansible') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'master'
+                    branch 'develop'
+                }
+            }
+            steps {
+                withCredentials([aws(credentialsId: 'aws-credentials', region: "${AWS_DEFAULT_REGION}")]) {
+                    script {
                         sh """
-                            kubectl apply -f ./k8s/01-mongo.yaml
-                            kubectl apply -f ./k8s/02-backend.yaml
-                            kubectl apply -f ./k8s/03-frontend.yaml
+                            ansible-playbook -i k8s/inventory k8s/deploy.yml \
+                                -e frontend_image=${ECR_REGISTRY}/${FRONTEND_REPO}:${BUILD_NUMBER} \
+                                -e backend_image=${ECR_REGISTRY}/${BACKEND_REPO}:${BUILD_NUMBER} \
+                                -e build_number=${BUILD_NUMBER}
                         """
                     }
                 }
             }
         }
     }
-
+    
     post {
         always {
-            script {
-                echo "🧹 Cleaning up workspace."
-                cleanWs()
-            }
+            cleanWs()
+            sh 'docker system prune -f'
         }
         success {
-            echo "✅ Build and deployment completed successfully!"
+            echo 'Pipeline completed successfully!'
         }
         failure {
-            echo "❌ Pipeline failed."
+            echo 'Pipeline failed!'
         }
     }
 }
