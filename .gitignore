@@ -1,0 +1,50 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Logs
+logs
+*.log
+*.log.*
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# dotenv environment variables
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# React
+build/
+dist/
+
+# Docker
+*.local
+docker-compose.override.yml
+
+# AWS SDK generated files (e.g., examples.json secrets)
+**/aws-sdk/apis/*.*.examples.json
+
+# Backup
+*.bak
+*.swp
+
+# Optional: Ignore IDE/editor stuff
+.vscode/
+.idea/
+
+# Git filter-repo backup (if used)
+.git-rewrite/
+
+# Optional: test coverage
+coverage/
+node_modules/
+.env
