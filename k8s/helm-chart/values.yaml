@@ -1,0 +1,92 @@
+# Default values for fullstack-app
+replicaCount: 2
+
+image:
+  repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+frontend:
+  name: frontend
+  image: my-app-frontend
+  port: 8080
+  targetPort: 8080
+  replicas: 2
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+backend:
+  name: backend
+  image: my-app-backend
+  port: 3000
+  targetPort: 3000
+  replicas: 3
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: AWS_REGION
+      value: "us-west-2"
+    - name: DYNAMODB_TABLE_NAME
+      value: "my-app-table"
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: ""
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: myapp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: backend
+  tls:
+    - secretName: myapp-tls
+      hosts:
+        - myapp.example.com
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Monitoring
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
