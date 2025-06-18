@@ -54,7 +54,7 @@ pipeline {
             }
         }
 
-        stage('Build, Scan with Trivy, and Push to ECR') {
+        stage('Scan Dockerfiles, Build, and Push to ECR') {
             steps {
                 withAWS(credentials: AWS_CREDENTIALS_ID, region: AWS_REGION) {
                     // Login to AWS ECR
@@ -64,23 +64,31 @@ pipeline {
                 script {
                     // Process Backend
                     dir('backend') {
-                        echo "--- Building, Scanning, and Pushing Backend ---"
-                        sh "docker build -t ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG} ."
-                        sh "trivy image --format table --exit-code 0 --severity HIGH,CRITICAL ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG} > backend_scan_report.txt"
+                        echo "--- Scanning Backend Dockerfile ---"
+                        // Scan the Dockerfile itself for misconfigurations
+                        sh "trivy config --format table --exit-code 0 --severity HIGH,CRITICAL . > backend_dockerfile_report.txt"
+                        
                         withAWS(credentials: AWS_CREDENTIALS_ID, region: AWS_REGION) {
-                            sh "aws s3 cp backend_scan_report.txt s3://${S3_REPORTS_BUCKET}/backend-report-${env.IMAGE_TAG}.txt"
+                            sh "aws s3 cp backend_dockerfile_report.txt s3://${S3_REPORTS_BUCKET}/backend-dockerfile-report-${env.IMAGE_TAG}.txt"
                         }
+                        
+                        echo "--- Building and Pushing Backend Image ---"
+                        sh "docker build -t ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG} ."
                         sh "docker push ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG}"
                     }
                     
                     // Process Frontend
                     dir('frontend') {
-                        echo "--- Building, Scanning, and Pushing Frontend ---"
-                        sh "docker build -t ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG} ."
-                        sh "trivy image --format table --exit-code 0 --severity HIGH,CRITICAL ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG} > frontend_scan_report.txt"
+                        echo "--- Scanning Frontend Dockerfile ---"
+                        // Scan the Dockerfile itself for misconfigurations
+                        sh "trivy config --format table --exit-code 0 --severity HIGH,CRITICAL . > frontend_dockerfile_report.txt"
+                        
                         withAWS(credentials: AWS_CREDENTIALS_ID, region: AWS_REGION) {
-                             sh "aws s3 cp frontend_scan_report.txt s3://${S3_REPORTS_BUCKET}/frontend-report-${env.IMAGE_TAG}.txt"
+                             sh "aws s3 cp frontend_dockerfile_report.txt s3://${S3_REPORTS_BUCKET}/frontend-dockerfile-report-${env.IMAGE_TAG}.txt"
                         }
+
+                        echo "--- Building and Pushing Frontend Image ---"
+                        sh "docker build -t ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG} ."
                         sh "docker push ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG}"
                     }
                 }
