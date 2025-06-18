@@ -57,6 +57,21 @@ pipeline {
             }
         }
 
+        stage('Setup S3 Bucket') {
+            steps {
+                echo "--- Ensuring S3 bucket '${S3_REPORTS_BUCKET}' exists ---"
+                sh """
+                    if aws s3api head-bucket --bucket "${S3_REPORTS_BUCKET}" 2>/dev/null; then
+                        echo "Bucket '${S3_REPORTS_BUCKET}' already exists."
+                    else
+                        echo "Bucket '${S3_REPORTS_BUCKET}' not found. Creating it..."
+                        aws s3api create-bucket --bucket "${S3_REPORTS_BUCKET}" --region "${AWS_REGION}" --create-bucket-configuration LocationConstraint=${AWS_REGION}
+                        echo "Bucket '${S3_REPORTS_BUCKET}' created."
+                    fi
+                """
+            }
+        }
+
         stage('Build, Scan Image, and Push to ECR') {
             steps {
                 script {
