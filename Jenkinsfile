@@ -5,9 +5,11 @@ pipeline {
 
     environment {
         // --- AWS Configuration ---
-        // This block securely loads your AWS credentials.
-        // It requires a single credential of type "AWS Credentials" with the ID 'aws-credentials'.
-        AWS_CREDS          = credentials('aws-credentials')
+        // This requires two separate 'Secret text' credentials in Jenkins:
+        // 1. ID: 'aws_access_key' with your AWS Access Key ID
+        // 2. ID: 'aws_secret_key' with your AWS Secret Access Key
+        AWS_ACCESS_KEY_ID     = credentials('aws_access_key')
+        AWS_SECRET_ACCESS_KEY = credentials('aws_secret_key')
         AWS_REGION         = 'us-west-2'
         AWS_ACCOUNT_ID     = '889818960214'
         
@@ -20,25 +22,27 @@ pipeline {
         
         // --- S3 Configuration ---
         S3_REPORTS_BUCKET  = 'fp-statefile-bucket'
+
+        // --- Tools Configuration ---
+        // Add the local bin directory to the PATH for this pipeline
+        PATH = "${env.WORKSPACE}/bin:${env.PATH}"
     }
 
     stages {
         stage('Install Tools') {
             steps {
-                echo "--- Checking for and installing Trivy if needed ---"
-                // This command block installs Trivy on Debian/Ubuntu-based agents.
-                // Note: This requires the 'jenkins' user to have passwordless sudo permissions.
+                echo "--- Checking for and installing Trivy if needed (no sudo required) ---"
                 sh '''
                     if ! command -v trivy &> /dev/null
                     then
-                        echo "Trivy not found. Installing..."
-                        sudo apt-get update
-                        sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-                        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
-                        echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
-                        sudo apt-get update
-                        sudo apt-get install -y trivy
-                        echo "Trivy installation complete."
+                        echo "Trivy not found. Installing locally..."
+                        mkdir -p ${WORKSPACE}/bin
+                        export TRIVY_VERSION=$(curl -s "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+                        curl -Lo trivy.tar.gz https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz
+                        tar -zxvf trivy.tar.gz
+                        mv trivy ${WORKSPACE}/bin/
+                        rm trivy.tar.gz
+                        echo "Trivy installed at ${WORKSPACE}/bin/trivy"
                     else
                         echo "Trivy is already installed."
                     fi
