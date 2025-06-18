@@ -5,9 +5,9 @@ pipeline {
 
     environment {
         // --- AWS Configuration ---
-        // These credentials will be automatically used by the AWS CLI
-        AWS_ACCESS_KEY_ID     = credentials('aws_access_key')
-        AWS_SECRET_ACCESS_KEY = credentials('aws_secret_key')
+        // This block securely loads your AWS credentials.
+        // It requires a single credential of type "AWS Credentials" with the ID 'aws-credentials'.
+        AWS_CREDS          = credentials('aws-credentials')
         AWS_REGION         = 'us-west-2'
         AWS_ACCOUNT_ID     = '889818960214'
         
@@ -25,8 +25,10 @@ pipeline {
     stages {
         stage('Start The Pipeline and Login to ECR') {
             steps {
+                // The AWS CLI will use the environment variables automatically populated by the credentials binding.
+                // AWS_ACCESS_KEY_ID is available as AWS_CREDS_ID
+                // AWS_SECRET_ACCESS_KEY is available as AWS_CREDS_PWORD
                 echo "--- Logging in to AWS ECR ---"
-                // The AWS CLI will use the environment variables for authentication
                 sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
             }
         }
