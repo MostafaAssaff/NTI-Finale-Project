@@ -20,7 +20,8 @@ pipeline {
         FRONTEND_REPO_URL  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND_NAME}"
         
         // --- S3 Configuration ---
-        S3_REPORTS_BUCKET  = 'fp-statefile-bucket'
+        // Appending the AWS Account ID to make the bucket name globally unique.
+        S3_REPORTS_BUCKET  = "fp-statefile-bucket-${AWS_ACCOUNT_ID}"
 
         // --- Tools Configuration ---
         // Add the local bin directory to the PATH for this pipeline
