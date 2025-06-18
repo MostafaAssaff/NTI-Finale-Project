@@ -13,8 +13,8 @@ pipeline {
         AWS_ACCOUNT_ID     = '889818960214'
         
         // --- ECR Configuration ---
-        ECR_BACKEND_NAME   = 'nti-backend-image'
-        ECR_FRONTEND_NAME  = 'nti-frontend-image'
+        ECR_BACKEND_NAME   = 'my-app-repo'
+        ECR_FRONTEND_NAME  = 'my-app-repo' // Using the same repository for both images
         IMAGE_TAG          = "${env.BUILD_NUMBER}"
         BACKEND_REPO_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND_NAME}"
         FRONTEND_REPO_URL  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND_NAME}"
@@ -58,6 +58,19 @@ pipeline {
             }
         }
 
+        stage('Setup ECR Repositories') {
+            steps {
+                echo "--- Ensuring ECR repositories exist ---"
+                sh """
+                    aws ecr describe-repositories --repository-names ${ECR_BACKEND_NAME} --region ${AWS_REGION} > /dev/null 2>&1 || \\
+                    aws ecr create-repository --repository-name ${ECR_BACKEND_NAME} --region ${AWS_REGION} --image-scanning-configuration scanOnPush=true
+                    
+                    aws ecr describe-repositories --repository-names ${ECR_FRONTEND_NAME} --region ${AWS_REGION} > /dev/null 2>&1 || \\
+                    aws ecr create-repository --repository-name ${ECR_FRONTEND_NAME} --region ${AWS_REGION} --image-scanning-configuration scanOnPush=true
+                """
+            }
+        }
+
         stage('Setup S3 Bucket') {
             steps {
                 echo "--- Ensuring S3 bucket '${S3_REPORTS_BUCKET}' exists ---"
@@ -79,7 +92,7 @@ pipeline {
                     // Process Backend
                     dir('backend') {
                         echo "--- Building Backend Image ---"
-                        sh "docker build -t ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG} ."
+                        sh "docker build -t ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG}"
                         
                         echo "--- Scanning Backend Image with Trivy ---"
                         sh "trivy image --format table --exit-code 0 --severity HIGH,CRITICAL ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG} > backend_scan_report.txt"
@@ -94,7 +107,7 @@ pipeline {
                     // Process Frontend
                     dir('frontend') {
                         echo "--- Building Frontend Image ---"
-                        sh "docker build -t ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG} ."
+                        sh "docker build -t ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG}"
                         
                         echo "--- Scanning Frontend Image with Trivy ---"
                         sh "trivy image --format table --exit-code 0 --severity HIGH,CRITICAL ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG} > frontend_scan_report.txt"
