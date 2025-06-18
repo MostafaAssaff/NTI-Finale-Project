@@ -1,125 +1,54 @@
-# Updated values.yaml for k8s/helm-chart
+# Default values for my-app
+replicaCount: 2
 
-# Global configuration
-global:
-  imageRegistry: "889818960214.dkr.ecr.us-west-2.amazonaws.com"
-
-# Frontend Configuration
+backend:
+  repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
+  tag: "1" # backend-tag
+  pullPolicy: Always
+  port: 8080
+  
 frontend:
-  enabled: true
-  name: frontend-app
-  replicaCount: 2
-  
-  image:
-    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/frontend-repo
-    tag: "latest"
-    pullPolicy: Always
-  
-  service:
+  repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
+  tag: "1" # frontend-tag
+  pullPolicy: Always
+  port: 3000
+
+service:
+  backend:
     type: ClusterIP
-    port: 3000
+    port: 8080
+  frontend:
+    type: LoadBalancer
+    port: 80
     targetPort: 3000
-  
-  # Resource limits and requests
-  resources:
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: my-app.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  backend:
     limits:
       cpu: 500m
       memory: 512Mi
     requests:
       cpu: 250m
       memory: 256Mi
-  
-  # Health checks
-  livenessProbe:
-    httpGet:
-      path: /
-      port: 3000
-    initialDelaySeconds: 30
-    periodSeconds: 10
-  
-  readinessProbe:
-    httpGet:
-      path: /
-      port: 3000
-    initialDelaySeconds: 5
-    periodSeconds: 5
-
-# Backend Configuration  
-backend:
-  enabled: true
-  name: backend-app
-  replicaCount: 2
-  
-  image:
-    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/backend-repo
-    tag: "latest"
-    pullPolicy: Always
-  
-  service:
-    type: ClusterIP
-    port: 8000
-    targetPort: 8000
-  
-  # Environment variables for backend
-  env:
-    - name: NODE_ENV
-      value: "production"
-    - name: PORT
-      value: "8000"
-  
-  # Resource limits and requests
-  resources:
+  frontend:
     limits:
-      cpu: 1000m
-      memory: 1Gi
-    requests:
       cpu: 500m
       memory: 512Mi
-  
-  # Health checks
-  livenessProbe:
-    httpGet:
-      path: /health
-      port: 8000
-    initialDelaySeconds: 30
-    periodSeconds: 10
-  
-  readinessProbe:
-    httpGet:
-      path: /health
-      port: 8000
-    initialDelaySeconds: 10
-    periodSeconds: 5
+    requests:
+      cpu: 250m
+      memory: 256Mi
 
-# Ingress configuration (optional)
-ingress:
-  enabled: false
-  className: "nginx"
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-  hosts:
-    - host: your-app.local
-      paths:
-        - path: /api
-          pathType: Prefix
-          service:
-            name: backend-app
-            port: 8000
-        - path: /
-          pathType: Prefix
-          service:
-            name: frontend-app
-            port: 3000
-
-# Horizontal Pod Autoscaler (optional)
-autoscaling:
-  frontend:
-    enabled: false
-    minReplicas: 2
-    maxReplicas: 10
-    targetCPUUtilizationPercentage: 80
-  backend:
-    enabled: false
-    minReplicas: 2
-    maxReplicas: 10
-    targetCPUUtilizationPercentage: 80
+nodeSelector: {}
+tolerations: []
+affinity: {}
