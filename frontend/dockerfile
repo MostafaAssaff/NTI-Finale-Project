@@ -1,15 +1,53 @@
-# Step 1
+# Frontend Dockerfile
 FROM node:18-alpine AS build
+
+# Set working directory
 WORKDIR /app
+
+# Set memory limit to prevent OOM during build
+ENV NODE_OPTIONS="--max-old-space-size=4096 --openssl-legacy-provider"
+
+# Copy package files first for better caching
 COPY package*.json ./
-RUN npm install
+
+# Install dependencies with optimizations
+RUN npm ci --silent && npm cache clean --force
+
+# Copy source code
 COPY . .
-ENV NODE_OPTIONS=--openssl-legacy-provider
+
+# Build the application
 RUN npm run build
 
-# Step 2 - استخدم أحدث إصدار وحدّث libxml2
+# Production stage
 FROM nginx:alpine
-RUN apk update && apk upgrade libxml2
+
+# Update packages for security
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache curl && \
+    rm -rf /var/cache/apk/*
+
+# Copy built application
 COPY --from=build /app/build /usr/share/nginx/html
+
+# Copy custom nginx config if needed
+# COPY nginx.conf /etc/nginx/nginx.conf
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nginx-user && \
+    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G nginx-user -g nginx-user nginx-user
+
+# Set proper permissions
+RUN chown -R nginx-user:nginx-user /usr/share/nginx/html && \
+    chown -R nginx-user:nginx-user /var/cache/nginx
+
+# Expose port
 EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
+
+# Start nginx
 CMD ["nginx", "-g", "daemon off;"]
