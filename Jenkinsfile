@@ -6,8 +6,8 @@ pipeline {
     environment {
         // --- AWS Configuration ---
         // These credentials will be automatically used by the AWS CLI
-        AWS_ACCESS_KEY_ID     = credentials('aws-credentials_id')
-        AWS_SECRET_ACCESS_KEY = credentials('aws-credentials_secret')
+        AWS_ACCESS_KEY_ID     = credentials('aws_access_key')
+        AWS_SECRET_ACCESS_KEY = credentials('aws_secret_key')
         AWS_REGION         = 'us-west-2'
         AWS_ACCOUNT_ID     = '889818960214'
         
