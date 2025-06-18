@@ -5,11 +5,9 @@ pipeline {
 
     environment {
         // --- AWS Configuration ---
-        // This requires two separate 'Secret text' credentials in Jenkins:
-        // 1. ID: 'aws_access_key' with your AWS Access Key ID
-        // 2. ID: 'aws_secret_key' with your AWS Secret Access Key
-        AWS_ACCESS_KEY_ID     = credentials('aws_access_key')
-        AWS_SECRET_ACCESS_KEY = credentials('aws_secret_key')
+        // This block securely loads your AWS credentials.
+        // It requires a single credential of type "AWS Credentials" with the ID 'aws-credentials'.
+        AWS_CREDS          = credentials('aws-credentials')
         AWS_REGION         = 'us-west-2'
         AWS_ACCOUNT_ID     = '889818960214'
         
@@ -52,6 +50,7 @@ pipeline {
 
         stage('Login to ECR') {
             steps {
+                // The AWS CLI will use the environment variables automatically populated by the credentials binding.
                 echo "--- Logging in to AWS ECR ---"
                 sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
             }
