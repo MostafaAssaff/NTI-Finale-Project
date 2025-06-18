@@ -92,7 +92,7 @@ pipeline {
                     // Process Backend
                     dir('backend') {
                         echo "--- Building Backend Image ---"
-                        sh "docker build -t ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG}"
+                        sh "docker build -t ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG} ."
                         
                         echo "--- Scanning Backend Image with Trivy ---"
                         sh "trivy image --format table --exit-code 0 --severity HIGH,CRITICAL ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG} > backend_scan_report.txt"
@@ -107,7 +107,7 @@ pipeline {
                     // Process Frontend
                     dir('frontend') {
                         echo "--- Building Frontend Image ---"
-                        sh "docker build -t ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG}"
+                        sh "docker build -t ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG} ."
                         
                         echo "--- Scanning Frontend Image with Trivy ---"
                         sh "trivy image --format table --exit-code 0 --severity HIGH,CRITICAL ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG} > frontend_scan_report.txt"
