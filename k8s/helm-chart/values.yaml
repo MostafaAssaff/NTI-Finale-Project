@@ -1,82 +1,125 @@
-# Default values for your Helm chart.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+# Updated values.yaml for k8s/helm-chart
 
-replicaCount: 1
+# Global configuration
+global:
+  imageRegistry: "889818960214.dkr.ecr.us-west-2.amazonaws.com"
 
+# Frontend Configuration
 frontend:
+  enabled: true
   name: frontend-app
+  replicaCount: 2
+  
   image:
-    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/nti-frontend-image
-    pullPolicy: IfNotPresent
-    # The Jenkins pipeline will automatically update this tag.
-    tag: 21 # frontend-tag
+    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/frontend-repo
+    tag: "latest"
+    pullPolicy: Always
+  
   service:
-    # Use LoadBalancer to expose the frontend to the internet
-    type: LoadBalancer
-    port: 80
-
-backend:
-  name: backend-app
-  image:
-    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/nti-backend-image
-    pullPolicy: IfNotPresent
-    # The Jenkins pipeline will automatically update this tag.
-    tag: 21 # backend-tag
-  service:
-    # Use ClusterIP because the backend should only be accessible from within the cluster (by the frontend).
     type: ClusterIP
-    port: 8080 # Assuming your backend Node.js app runs on port 8080
+    port: 3000
+    targetPort: 3000
+  
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  
+  # Health checks
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 3000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  
+  readinessProbe:
+    httpGet:
+      path: /
+      port: 3000
+    initialDelaySeconds: 5
+    periodSeconds: 5
 
-# --- Standard Helm Chart Optional Values ---
+# Backend Configuration  
+backend:
+  enabled: true
+  name: backend-app
+  replicaCount: 2
+  
+  image:
+    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/backend-repo
+    tag: "latest"
+    pullPolicy: Always
+  
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+  
+  # Environment variables for backend
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: PORT
+      value: "8000"
+  
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Health checks
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 10
+    periodSeconds: 5
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
-
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
-
-podAnnotations: {}
-
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-autoscaling:
+# Ingress configuration (optional)
+ingress:
   enabled: false
-  minReplicas: 1
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: your-app.local
+      paths:
+        - path: /api
+          pathType: Prefix
+          service:
+            name: backend-app
+            port: 8000
+        - path: /
+          pathType: Prefix
+          service:
+            name: frontend-app
+            port: 3000
 
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
+# Horizontal Pod Autoscaler (optional)
+autoscaling:
+  frontend:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+  backend:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
