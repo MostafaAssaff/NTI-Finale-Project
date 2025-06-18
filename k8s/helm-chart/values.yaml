@@ -10,7 +10,7 @@ frontend:
     repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/nti-frontend-image
     pullPolicy: IfNotPresent
     # The Jenkins pipeline will automatically update this tag.
-    tag: "latest" # frontend-tag
+    tag: 21 # frontend-tag
   service:
     # Use LoadBalancer to expose the frontend to the internet
     type: LoadBalancer
@@ -22,7 +22,7 @@ backend:
     repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/nti-backend-image
     pullPolicy: IfNotPresent
     # The Jenkins pipeline will automatically update this tag.
-    tag: "latest" # backend-tag
+    tag: 21 # backend-tag
   service:
     # Use ClusterIP because the backend should only be accessible from within the cluster (by the frontend).
     type: ClusterIP
