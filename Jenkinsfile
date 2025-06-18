@@ -5,8 +5,9 @@ pipeline {
 
     environment {
         // --- AWS Configuration ---
-        // This block securely loads your AWS credentials.
-        // It requires a single credential of type "AWS Credentials" with the ID 'aws-credentials'.
+        // This requires a single Jenkins credential of type "AWS Credentials" 
+        // with the ID 'aws-credentials'. Jenkins will automatically use this 
+        // to set the required AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.
         AWS_CREDS          = credentials('aws-credentials')
         AWS_REGION         = 'us-west-2'
         AWS_ACCOUNT_ID     = '889818960214'
@@ -35,12 +36,12 @@ pipeline {
                     then
                         echo "Trivy not found. Installing locally..."
                         mkdir -p ${WORKSPACE}/bin
-                        export TRIVY_VERSION=$(curl -s "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+                        export TRIVY_VERSION='0.52.2'
                         curl -Lo trivy.tar.gz https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz
-                        tar -zxvf trivy.tar.gz
-                        mv trivy ${WORKSPACE}/bin/
+                        tar -zxvf trivy.tar.gz -C ${WORKSPACE}/bin/ trivy
                         rm trivy.tar.gz
-                        echo "Trivy installed at ${WORKSPACE}/bin/trivy"
+                        chmod +x ${WORKSPACE}/bin/trivy
+                        echo "Trivy v${TRIVY_VERSION} installed at ${WORKSPACE}/bin/trivy"
                     else
                         echo "Trivy is already installed."
                     fi
@@ -50,8 +51,8 @@ pipeline {
 
         stage('Login to ECR') {
             steps {
-                // The AWS CLI will use the environment variables automatically populated by the credentials binding.
                 echo "--- Logging in to AWS ECR ---"
+                // The AWS CLI will automatically use the credentials set in the environment block
                 sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
             }
         }
