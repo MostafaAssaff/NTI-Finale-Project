@@ -4,15 +4,17 @@ pipeline {
     agent any
 
     environment {
-        // --- AWS Configuration from your example ---
+        // --- AWS Configuration ---
+        // These credentials will be automatically used by the AWS CLI
+        AWS_ACCESS_KEY_ID     = credentials('aws-credentials_id')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-credentials_secret')
+        AWS_REGION         = 'us-west-2'
         AWS_ACCOUNT_ID     = '889818960214'
-        AWS_REGION         = 'us-west-2' // Using your project's region
-        AWS_CREDENTIALS_ID = 'aws-credentials' // Using your project's credential ID
-
+        
         // --- ECR Configuration ---
         ECR_BACKEND_NAME   = 'nti-backend-image'
         ECR_FRONTEND_NAME  = 'nti-frontend-image'
-        IMAGE_TAG          = "${env.BUILD_NUMBER}" // Simplified tag from your example
+        IMAGE_TAG          = "${env.BUILD_NUMBER}"
         BACKEND_REPO_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND_NAME}"
         FRONTEND_REPO_URL  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND_NAME}"
         
@@ -21,13 +23,11 @@ pipeline {
     }
 
     stages {
-        stage('Start The Pipeline') {
+        stage('Start The Pipeline and Login to ECR') {
             steps {
                 echo "--- Logging in to AWS ECR ---"
-                // Login to AWS ECR using the AWS Credentials plugin
-                withAWS(credentials: AWS_CREDENTIALS_ID, region: AWS_REGION) {
-                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-                }
+                // The AWS CLI will use the environment variables for authentication
+                sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
             }
         }
 
@@ -43,9 +43,7 @@ pipeline {
                         sh "trivy image --format table --exit-code 0 --severity HIGH,CRITICAL ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG} > backend_scan_report.txt"
                         
                         echo "--- Uploading Backend Report to S3 ---"
-                        withAWS(credentials: AWS_CREDENTIALS_ID, region: AWS_REGION) {
-                            sh "aws s3 cp backend_scan_report.txt s3://${S3_REPORTS_BUCKET}/backend-report-${env.IMAGE_TAG}.txt"
-                        }
+                        sh "aws s3 cp backend_scan_report.txt s3://${S3_REPORTS_BUCKET}/backend-report-${env.IMAGE_TAG}.txt"
 
                         echo "--- Pushing Backend Image to ECR ---"
                         sh "docker push ${env.BACKEND_REPO_URL}:${env.IMAGE_TAG}"
@@ -60,9 +58,7 @@ pipeline {
                         sh "trivy image --format table --exit-code 0 --severity HIGH,CRITICAL ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG} > frontend_scan_report.txt"
                         
                         echo "--- Uploading Frontend Report to S3 ---"
-                        withAWS(credentials: AWS_CREDENTIALS_ID, region: AWS_REGION) {
-                             sh "aws s3 cp frontend_scan_report.txt s3://${S3_REPORTS_BUCKET}/frontend-report-${env.IMAGE_TAG}.txt"
-                        }
+                        sh "aws s3 cp frontend_scan_report.txt s3://${S3_REPORTS_BUCKET}/frontend-report-${env.IMAGE_TAG}.txt"
 
                         echo "--- Pushing Frontend Image to ECR ---"
                         sh "docker push ${env.FRONTEND_REPO_URL}:${env.IMAGE_TAG}"
