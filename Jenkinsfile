@@ -23,11 +23,31 @@ pipeline {
     }
 
     stages {
-        stage('Start The Pipeline and Login to ECR') {
+        stage('Install Tools') {
             steps {
-                // The AWS CLI will use the environment variables automatically populated by the credentials binding.
-                // AWS_ACCESS_KEY_ID is available as AWS_CREDS_ID
-                // AWS_SECRET_ACCESS_KEY is available as AWS_CREDS_PWORD
+                echo "--- Checking for and installing Trivy if needed ---"
+                // This command block installs Trivy on Debian/Ubuntu-based agents.
+                // Note: This requires the 'jenkins' user to have passwordless sudo permissions.
+                sh '''
+                    if ! command -v trivy &> /dev/null
+                    then
+                        echo "Trivy not found. Installing..."
+                        sudo apt-get update
+                        sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+                        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+                        echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
+                        sudo apt-get update
+                        sudo apt-get install -y trivy
+                        echo "Trivy installation complete."
+                    else
+                        echo "Trivy is already installed."
+                    fi
+                '''
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
                 echo "--- Logging in to AWS ECR ---"
                 sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
             }
