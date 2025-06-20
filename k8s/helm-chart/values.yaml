@@ -2,13 +2,13 @@
 replicaCount: 2
 backend:
   repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
-  tag: 33 # backend-tag (updated to existing tag)
+  tag: 34 # backend-tag (updated to existing tag)
   pullPolicy: Always
   port: 8080
   
 frontend:
   repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
-  tag: 33 # frontend-tag (updated to existing tag)
+  tag: 34 # frontend-tag (updated to existing tag)
   pullPolicy: Always
   port: 80  # Changed from 3000 to 80 to match nginx
   
