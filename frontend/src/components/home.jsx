@@ -1,3 +1,4 @@
+// src/components/home.jsx
 import { useEffect, useState } from "react";
 import axios from "axios";
 import {
@@ -13,50 +14,36 @@ import {
 } from "reactstrap";
 import TodoForm from "./todo-form";
 
-// Add fallback URL in case environment variable is not set
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// ✅ USE YOUR BACKEND LOAD BALANCER HERE (or use .env during build)
+const API_URL = process.env.REACT_APP_API_URL || 'http://ab88cbab472af4627805c2ff8d125066-1728297530.us-west-2.elb.amazonaws.com:5000/api';
 
 const Home = () => {
-  // Initialize as empty array instead of empty array
   const [todos, setTodos] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const getData = async () => {
-      await getTodos();
-    };
-    getData();
+    getTodos();
   }, []);
 
   const getTodos = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('Fetching from:', `${API_URL}/todos`); // Debug log
-      
+
       const res = await axios.get(`${API_URL}/todos`);
-      
-      console.log('API Response:', res.data); // Debug log
-      console.log('Response type:', typeof res.data); // Debug log
-      console.log('Is array:', Array.isArray(res.data)); // Debug log
-      
-      // Ensure we always set an array
+
       if (Array.isArray(res.data)) {
         setTodos(res.data);
-      } else if (res.data && res.data.todos && Array.isArray(res.data.todos)) {
-        // In case API returns {todos: [...]}
+      } else if (res.data?.todos && Array.isArray(res.data.todos)) {
         setTodos(res.data.todos);
       } else {
-        console.warn('API did not return an array:', res.data);
         setTodos([]);
       }
     } catch (err) {
-      console.error('API Error:', err);
       setError(err.message);
-      setTodos([]); // Ensure todos is always an array
+      setTodos([]);
     } finally {
       setLoading(false);
     }
@@ -64,9 +51,7 @@ const Home = () => {
 
   const handleClick = async (id) => {
     try {
-      await axios.patch(`${API_URL}/todos/${id}`, {
-        is_complete: true,
-      });
+      await axios.patch(`${API_URL}/todos/${id}`, { is_complete: true });
       await getTodos();
     } catch (err) {
       console.error("Error updating todo:", err);
@@ -83,7 +68,6 @@ const Home = () => {
     }
   };
 
-  // Show loading state
   if (loading) {
     return (
       <Card>
@@ -95,13 +79,12 @@ const Home = () => {
     );
   }
 
-  // Show error state
   if (error) {
     return (
       <Card>
         <CardBody>
           <CardTitle tag="h1">Todos</CardTitle>
-          <p style={{color: 'red'}}>Error loading todos: {error}</p>
+          <p style={{ color: 'red' }}>Error loading todos: {error}</p>
           <p>API URL: {API_URL}</p>
           <Button onClick={getTodos} color="primary">Retry</Button>
         </CardBody>
@@ -115,48 +98,36 @@ const Home = () => {
         <CardBody>
           <CardTitle tag="h1">Todos</CardTitle>
           <ListGroup>
-            {/* Additional safety check before mapping */}
-            {todos && Array.isArray(todos) && todos.length > 0 ? (
-              todos.map((todo) => {
-                return (
-                  <ListGroupItem
-                    title="Click this to complete."
-                    key={todo._id}
-                    action
-                    tag="a"
-                  >
-                    <div className="d-flex w-100 justify-content-between">
-                      <div className="form-check">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          onChange={() => handleClick(todo._id)}
-                          value="foobar"
-                          defaultChecked={todo.is_complete}
-                        />
-                      </div>
-                      <h5>{todo.title}</h5>
-                      <small>Due: {todo.due_date}</small>
+            {todos.length > 0 ? (
+              todos.map((todo) => (
+                <ListGroupItem key={todo._id} action tag="a" title="Click this to complete.">
+                  <div className="d-flex w-100 justify-content-between">
+                    <div className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        onChange={() => handleClick(todo._id)}
+                        defaultChecked={todo.is_complete}
+                      />
                     </div>
-                    <p className="mb-1">{todo.description}</p>
-                  </ListGroupItem>
-                );
-              })
+                    <h5>{todo.title}</h5>
+                    <small>Due: {todo.due_date}</small>
+                  </div>
+                  <p className="mb-1">{todo.description}</p>
+                </ListGroupItem>
+              ))
             ) : (
               <ListGroupItem>
                 <p>No todos found. Add your first todo!</p>
               </ListGroupItem>
             )}
           </ListGroup>
-          <Button onClick={() => setModalOpen(true)} color="primary">
-            Add Todo
-          </Button>
+          <Button onClick={() => setModalOpen(true)} color="primary">Add Todo</Button>
         </CardBody>
       </Card>
+
       <Modal isOpen={modalOpen}>
-        <ModalHeader toggle={() => setModalOpen(!modalOpen)}>
-          Add new Todo
-        </ModalHeader>
+        <ModalHeader toggle={() => setModalOpen(!modalOpen)}>Add new Todo</ModalHeader>
         <ModalBody>
           <TodoForm saveTodo={handleNewTodo} />
         </ModalBody>
