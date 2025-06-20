@@ -1,5 +1,5 @@
-# Stage 1: Use a stable, full-featured image (avoid Alpine issues)
-FROM node:18-slim AS build
+# Stage 1: Use Node.js 16 to avoid OpenSSL 3.0 issues
+FROM node:16-slim AS build
 
 # Set working directory
 WORKDIR /app
