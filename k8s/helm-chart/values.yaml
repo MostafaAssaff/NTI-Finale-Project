@@ -1,5 +1,6 @@
 # Default values for my-app
 replicaCount: 2
+
 backend:
   repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
   tag: 35 # backend-tag (updated to existing tag)
@@ -14,8 +15,8 @@ frontend:
   
 service:
   backend:
-    type: ClusterIP
-    port: 8080
+    type: LoadBalancer  # Changed from ClusterIP to LoadBalancer
+    port: 5000          # Changed from 8080 to 5000 (what frontend expects)
   frontend:
     type: LoadBalancer
     port: 80
