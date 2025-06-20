@@ -89,16 +89,21 @@ pipeline {
                     sh '''
                         git config user.email "jenkins-ci@example.com"
                         git config user.name "Jenkins CI"
+                        git remote set-url origin https://${GITHUB_TOKEN}@github.com/MostafaAssaff/NTI-Finale-Project.git
+
+                        git checkout main || git checkout -b main
+                        git pull --rebase origin main || true
 
                         sed -i "s|tag:.*# backend-tag|tag: ${IMAGE_TAG} # backend-tag|g" ./k8s/helm-chart/values.yaml
                         sed -i "s|tag:.*# frontend-tag|tag: ${IMAGE_TAG} # frontend-tag|g" ./k8s/helm-chart/values.yaml
 
-                        git remote set-url origin https://${GITHUB_TOKEN}@github.com/MostafaAssaff/NTI-Finale-Project.git
-                        git checkout main || git checkout -b main
-
-                        git add ./k8s/helm-chart/values.yaml
-                        git commit -m "ci: Update image tags to version ${IMAGE_TAG}" || echo "No changes to commit"
-                        git push origin main
+                        if git diff --quiet && git diff --cached --quiet; then
+                          echo "No changes to commit"
+                        else
+                          git add ./k8s/helm-chart/values.yaml
+                          git commit -m "ci: Update image tags to version ${IMAGE_TAG}"
+                          git push origin main
+                        fi
                     '''
                 }
             }
