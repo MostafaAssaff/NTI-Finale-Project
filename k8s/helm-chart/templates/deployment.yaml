@@ -15,15 +15,16 @@ spec:
         app: {{ include "my-app.name" . }}-backend
     spec:
       containers:
-      - name: backend
-        image: "{{ .Values.backend.repository }}:{{ .Values.backend.tag }}"
-        imagePullPolicy: {{ .Values.backend.pullPolicy }}
-        ports:
-        - name: http
-          containerPort: {{ .Values.backend.port }}
-          protocol: TCP
-        resources:
-          {{- toYaml .Values.resources.backend | nindent 12 }}
+        - name: backend
+          image: "{{ .Values.backend.repository }}:{{ .Values.backend.tag }}"
+          imagePullPolicy: {{ .Values.backend.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.backend.port }}
+              name: http
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources.backend | nindent 12 }}
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -42,12 +43,12 @@ spec:
         app: {{ include "my-app.name" . }}-frontend
     spec:
       containers:
-      - name: frontend
-        image: "{{ .Values.frontend.repository }}:{{ .Values.frontend.tag }}"
-        imagePullPolicy: {{ .Values.frontend.pullPolicy }}
-        ports:
-        - name: http
-          containerPort: {{ .Values.frontend.port }}
-          protocol: TCP
-        resources:
-          {{- toYaml .Values.resources.frontend | nindent 12 }}
+        - name: frontend
+          image: "{{ .Values.frontend.repository }}:{{ .Values.frontend.tag }}"
+          imagePullPolicy: {{ .Values.frontend.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.frontend.port }}
+              name: http
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources.frontend | nindent 12 }}
