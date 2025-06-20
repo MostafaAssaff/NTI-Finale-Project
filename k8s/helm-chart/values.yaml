@@ -1,6 +1,5 @@
 # Default values for my-app
 replicaCount: 2
-
 backend:
   repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
   tag: 31 # backend-tag
@@ -11,8 +10,8 @@ frontend:
   repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
   tag: 31 # frontend-tag
   pullPolicy: Always
-  port: 3000
-
+  port: 80  # Changed from 3000 to 80 to match nginx
+  
 service:
   backend:
     type: ClusterIP
@@ -20,7 +19,7 @@ service:
   frontend:
     type: LoadBalancer
     port: 80
-    targetPort: 3000
+    targetPort: 80  # Changed from 3000 to 80 to match nginx
 
 ingress:
   enabled: false
