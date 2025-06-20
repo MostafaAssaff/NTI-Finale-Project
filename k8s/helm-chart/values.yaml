@@ -1,26 +1,25 @@
-# Default values for my-app
 replicaCount: 2
 
 backend:
   repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
-  tag: 37 # backend-tag (updated to existing tag)
+  tag: 37
   pullPolicy: Always
-  port: 8080
-  
+  port: 3001  # ← ده البورت اللي الـ backend شغّال عليه
+
 frontend:
   repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
-  tag: 37 # frontend-tag (updated to existing tag)
+  tag: 37
   pullPolicy: Always
-  port: 80  # Changed from 3000 to 80 to match nginx
-  
+  port: 80  # Nginx بيخدم هنا
+
 service:
   backend:
-    type: LoadBalancer  # Changed from ClusterIP to LoadBalancer
-    port: 5000          # Changed from 8080 to 5000 (what frontend expects)
+    type: LoadBalancer
+    port: 5000  # الـ frontend هيطلب عليه
   frontend:
     type: LoadBalancer
     port: 80
-    targetPort: 80  # Changed from 3000 to 80 to match nginx
+    targetPort: 80
 
 ingress:
   enabled: false
