@@ -9,12 +9,14 @@ pipeline {
         ECR_BACKEND_NAME   = 'my-app-backend-repo'
         ECR_FRONTEND_NAME  = 'my-app-frontend-repo'
         IMAGE_TAG          = "${env.BUILD_NUMBER}"
-        
         BACKEND_REPO_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND_NAME}"
         FRONTEND_REPO_URL  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND_NAME}"
 
         S3_REPORTS_BUCKET  = "fp-statefile-bucket-${AWS_ACCOUNT_ID}"
-        PATH               = "${env.WORKSPACE}/bin:${env.PATH}"
+        PATH = "${env.WORKSPACE}/bin:${env.PATH}"
+
+        // ✅ Backend LoadBalancer ELB URL
+        BACKEND_API_URL    = "http://a854e4d1a13dc47f48088f62bf9508df-1650274140.us-west-2.elb.amazonaws.com:3001/api"
     }
 
     stages {
@@ -45,7 +47,7 @@ pipeline {
                 sh """
                     aws ecr describe-repositories --repository-names ${ECR_BACKEND_NAME} --region ${AWS_REGION} > /dev/null 2>&1 || \
                     aws ecr create-repository --repository-name ${ECR_BACKEND_NAME} --region ${AWS_REGION} --image-scanning-configuration scanOnPush=true
-
+                    
                     aws ecr describe-repositories --repository-names ${ECR_FRONTEND_NAME} --region ${AWS_REGION} > /dev/null 2>&1 || \
                     aws ecr create-repository --repository-name ${ECR_FRONTEND_NAME} --region ${AWS_REGION} --image-scanning-configuration scanOnPush=true
                 """
@@ -77,7 +79,7 @@ pipeline {
                     dir('frontend') {
                         sh """
                             docker build \
-                              --build-arg REACT_APP_API_URL=http://my-app-backend:3001/api \
+                              --build-arg REACT_APP_API_URL=${BACKEND_API_URL} \
                               -t ${FRONTEND_REPO_URL}:${IMAGE_TAG} .
                         """
                         sh "trivy image --format table --exit-code 0 --severity HIGH,CRITICAL ${FRONTEND_REPO_URL}:${IMAGE_TAG} > frontend_scan_report.txt"
@@ -110,8 +112,8 @@ pipeline {
                           git push origin main
                         fi
 
-                        git tag -a v${IMAGE_TAG} -m "Release version ${IMAGE_TAG}" || true
-                        git push origin v${IMAGE_TAG} || true
+                        git tag -a v${IMAGE_TAG} -m "Release version ${IMAGE_TAG}"
+                        git push origin v${IMAGE_TAG}
                     '''
                 }
             }
