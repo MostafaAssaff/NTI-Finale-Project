@@ -3,7 +3,7 @@ backend:
   replicaCount: 2
   image:
     repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
-    tag: 51
+    tag: 52
     pullPolicy: Always
   port: 3001
   resources:
@@ -22,7 +22,7 @@ frontend:
   replicaCount: 2
   image:
     repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
-    tag: 51
+    tag: 52
     pullPolicy: Always
   port: 8080  # <-- تشغيل nginx على 8080 داخل الحاوية
   resources:
