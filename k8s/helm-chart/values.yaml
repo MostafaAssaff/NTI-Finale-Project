@@ -17,8 +17,7 @@ backend:
     region: us-west-2
     dynamoTableName: todos
   serviceAccount:
-    create: false
-    name: backend-sa  # this links the backend to the IAM role
+    name: backend-sa
 
 # Frontend configuration
 frontend:
