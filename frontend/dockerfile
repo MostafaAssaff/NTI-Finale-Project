@@ -7,6 +7,16 @@ RUN npm ci --silent
 COPY . .
 
 ARG REACT_APP_API_URL
-ENV REACT_APP_API_URL=${REACT_APP_API_URL}  # Optional: used for scripts
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 
+# Correct way to pass build-time env var to React
 RUN REACT_APP_API_URL=${REACT_APP_API_URL} npm run build
+
+# Stage 2: Serve with nginx (unprivileged version)
+FROM nginxinc/nginx-unprivileged:alpine
+
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY --from=build /app/build /usr/share/nginx/html
+
+EXPOSE 8080
+CMD ["nginx", "-g", "daemon off;"]
