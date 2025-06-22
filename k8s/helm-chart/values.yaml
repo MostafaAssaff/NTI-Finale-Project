@@ -2,8 +2,8 @@
 backend:
   replicaCount: 2
   image:
-    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
-    tag: 52
+    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-backend-repo
+    tag: 51  # Update this dynamically by Jenkins
     pullPolicy: Always
   port: 3001
   resources:
@@ -21,10 +21,10 @@ backend:
 frontend:
   replicaCount: 2
   image:
-    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
-    tag: 52
+    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-frontend-repo
+    tag: 51  # Update this dynamically by Jenkins
     pullPolicy: Always
-  port: 8080  # <-- تشغيل nginx على 8080 داخل الحاوية
+  port: 80
   resources:
     limits:
       cpu: 250m
@@ -40,8 +40,8 @@ service:
     port: 3001
   frontend:
     type: LoadBalancer
-    port: 80         # <-- ده الخارجي
-    targetPort: 8080 # <-- ده الداخلي اللي nginx بيسمع عليه
+    port: 80
+    targetPort: 80
 
 # Ingress configuration
 ingress:
