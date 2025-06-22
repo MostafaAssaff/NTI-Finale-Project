@@ -37,8 +37,15 @@ RUN mkdir -p /var/cache/nginx/client_temp \
                  /var/log/nginx \
                  /var/run
 
+# Create a custom entrypoint script
+RUN echo '#!/bin/sh' > /custom-entrypoint.sh && \
+    echo 'set -e' >> /custom-entrypoint.sh && \
+    echo 'exec nginx -g "daemon off;"' >> /custom-entrypoint.sh && \
+    chmod +x /custom-entrypoint.sh && \
+    chown nginx-user:nginx-group /custom-entrypoint.sh
+
 # Switch to non-root user
 USER nginx-user
 
 EXPOSE 8080
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/custom-entrypoint.sh"]
