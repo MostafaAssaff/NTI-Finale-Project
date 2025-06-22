@@ -1,53 +1,77 @@
-replicaCount: 2
+# Default values for my-app.
+# This is a YAML-formatted file.
 
+# Backend configuration
 backend:
-  repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
-  tag: 37
-  pullPolicy: Always
-  port: 3001  # ← ده البورت اللي الـ backend شغّال عليه
+  replicaCount: 2
+  image:
+    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
+    tag: "37"  # Update this with your latest backend image tag
+    pullPolicy: Always
+  port: 3001  # Match your server.js port
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  aws:
+    region: us-west-2
+    dynamoTableName: todos
+    # roleArn: arn:aws:iam::889818960214:role/your-eks-role  # If using IRSA
 
+# Frontend configuration
 frontend:
-  repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-repo
-  tag: 37
-  pullPolicy: Always
-  port: 80  # Nginx بيخدم هنا
+  replicaCount: 2
+  image:
+    repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-frontend-repo
+    tag: "latest"  # Update this with your frontend image tag
+    pullPolicy: Always
+  port: 80  # Assuming your frontend runs on port 80 (nginx)
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
 
+# Service configuration
 service:
   backend:
     type: LoadBalancer
-    port: 5000  # الـ frontend هيطلب عليه
+    port: 3001  # Changed from 5000 to 3001
   frontend:
     type: LoadBalancer
     port: 80
     targetPort: 80
 
+# Ingress configuration (optional - for production use)
 ingress:
   enabled: false
   className: ""
   annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: my-app.local
+    - host: your-app.example.com
       paths:
         - path: /
           pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: backend
   tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
 
-resources:
-  backend:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 250m
-      memory: 256Mi
-  frontend:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 250m
-      memory: 256Mi
-
-nodeSelector: {}
-tolerations: []
-affinity: {}
+# Auto-scaling configuration (optional)
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
