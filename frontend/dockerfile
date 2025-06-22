@@ -1,4 +1,3 @@
-# Frontend Dockerfile
 # Stage 1: Build React app
 FROM node:18-alpine as build
 
@@ -6,15 +5,21 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+
+# Install dependencies (production only)
 RUN npm ci --silent
 
-# Copy source code and build
+# Copy source code
 COPY . .
 
 # Build args for environment variables
 ARG REACT_APP_API_URL
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
+# ✅ Fix OpenSSL error with Webpack and Node 18+
+ENV NODE_OPTIONS=--openssl-legacy-provider
+
+# Build the app
 RUN npm run build
 
 # Stage 2: Serve with nginx
@@ -40,13 +45,15 @@ RUN chown -R nginx-user:nginx-group /usr/share/nginx/html && \
 RUN touch /var/run/nginx.pid && \
     chown -R nginx-user:nginx-group /var/run/nginx.pid
 
+# Use non-root user
 USER nginx-user
 
-# Expose port 80
+# Expose port
 EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:80/ || exit 1
 
+# Start nginx
 CMD ["nginx", "-g", "daemon off;"]
