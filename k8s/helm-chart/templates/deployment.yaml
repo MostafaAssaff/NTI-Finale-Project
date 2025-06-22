@@ -5,7 +5,7 @@ metadata:
   labels:
     app: {{ include "my-app.name" . }}-backend
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.backend.replicaCount }}
   selector:
     matchLabels:
       app: {{ include "my-app.name" . }}-backend
@@ -15,16 +15,45 @@ spec:
         app: {{ include "my-app.name" . }}-backend
     spec:
       containers:
-        - name: backend
-          image: "{{ .Values.backend.repository }}:{{ .Values.backend.tag }}"
-          imagePullPolicy: {{ .Values.backend.pullPolicy }}
-          ports:
-            - containerPort: {{ .Values.backend.port }}
-              name: http
-              protocol: TCP
-          resources:
-            {{- toYaml .Values.resources.backend | nindent 12 }}
-
+      - name: backend
+        image: {{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}
+        imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+        ports:
+        - containerPort: 3001  # Match your server.js port
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3001"
+        # Add your AWS/DynamoDB environment variables here
+        - name: AWS_REGION
+          value: {{ .Values.backend.aws.region | default "us-west-2" }}
+        - name: DYNAMODB_TABLE_NAME
+          value: {{ .Values.backend.aws.dynamoTableName | default "todos" }}
+        # If using AWS IAM roles for service accounts, uncomment:
+        # - name: AWS_ROLE_ARN
+        #   value: {{ .Values.backend.aws.roleArn }}
+        resources:
+          limits:
+            cpu: {{ .Values.backend.resources.limits.cpu }}
+            memory: {{ .Values.backend.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.backend.resources.requests.cpu }}
+            memory: {{ .Values.backend.resources.requests.memory }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 5
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -33,7 +62,7 @@ metadata:
   labels:
     app: {{ include "my-app.name" . }}-frontend
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.frontend.replicaCount }}
   selector:
     matchLabels:
       app: {{ include "my-app.name" . }}-frontend
@@ -43,12 +72,33 @@ spec:
         app: {{ include "my-app.name" . }}-frontend
     spec:
       containers:
-        - name: frontend
-          image: "{{ .Values.frontend.repository }}:{{ .Values.frontend.tag }}"
-          imagePullPolicy: {{ .Values.frontend.pullPolicy }}
-          ports:
-            - containerPort: {{ .Values.frontend.port }}
-              name: http
-              protocol: TCP
-          resources:
-            {{- toYaml .Values.resources.frontend | nindent 12 }}
+      - name: frontend
+        image: {{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}
+        imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.frontend.port }}
+          name: http
+          protocol: TCP
+        env:
+        # Set the backend API URL for the frontend
+        - name: REACT_APP_API_URL
+          value: "http://{{ include "my-app.fullname" . }}-backend:3001/api"
+        resources:
+          limits:
+            cpu: {{ .Values.frontend.resources.limits.cpu }}
+            memory: {{ .Values.frontend.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.frontend.resources.requests.cpu }}
+            memory: {{ .Values.frontend.resources.requests.memory }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: {{ .Values.frontend.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: {{ .Values.frontend.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
