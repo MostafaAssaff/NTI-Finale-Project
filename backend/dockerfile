@@ -1,32 +1,30 @@
-# Stage 1: Build the Node.js backend
-FROM node:14 AS build
+# Backend Dockerfile
+FROM node:18-alpine
 
+# Set working directory
 WORKDIR /app
+
+# Install dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy source code
 COPY . .
 
-# Stage 2: Run backend with Nginx as reverse proxy
-FROM nginx:alpine
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
 
-# Copy app code
-COPY --from=build /app /app
+# Change ownership of the app directory
+RUN chown -R nodejs:nodejs /app
+USER nodejs
 
-# Generate default.conf inline instead of copying from project
-RUN echo 'server { \
-  listen 80; \
-  server_name localhost; \
-  location / { \
-    proxy_pass http://localhost:3000; \
-    proxy_http_version 1.1; \
-    proxy_set_header Upgrade $http_upgrade; \
-    proxy_set_header Connection "upgrade"; \
-    proxy_set_header Host $host; \
-    proxy_cache_bypass $http_upgrade; \
-  } \
-}' > /etc/nginx/conf.d/default.conf
+# Expose port 3001 (match your server.js)
+EXPOSE 3001
 
-# Start both Node.js backend and Nginx in same container
-CMD ["sh", "-c", "node /app/server.js & nginx -g 'daemon off;'"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-EXPOSE 80
+# Start the application
+CMD ["node", "server.js"]
