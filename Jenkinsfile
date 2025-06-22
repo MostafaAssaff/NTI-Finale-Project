@@ -5,9 +5,9 @@ pipeline {
         AWS_CREDS          = credentials('aws-credentials')
         AWS_REGION         = 'us-west-2'
         AWS_ACCOUNT_ID     = '889818960214'
-
-        ECR_BACKEND_NAME   = 'my-app-repo'
-        ECR_FRONTEND_NAME  = 'my-app-repo'
+        
+        ECR_BACKEND_NAME   = 'my-app-backend-repo'
+        ECR_FRONTEND_NAME  = 'my-app-frontend-repo'
         IMAGE_TAG          = "${env.BUILD_NUMBER}"
         BACKEND_REPO_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND_NAME}"
         FRONTEND_REPO_URL  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND_NAME}"
@@ -20,7 +20,8 @@ pipeline {
         stage('Install Tools') {
             steps {
                 sh '''
-                    if ! command -v trivy &> /dev/null; then
+                    if ! command -v trivy &> /dev/null
+                    then
                         mkdir -p ${WORKSPACE}/bin
                         export TRIVY_VERSION='0.52.2'
                         curl -Lo trivy.tar.gz https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz
@@ -93,11 +94,8 @@ pipeline {
                         git checkout main || git checkout -b main
                         git pull --rebase origin main || true
 
-                        # Update backend tag
-                        sed -i "/backend:/,/tag:/s|tag: .*|tag: ${IMAGE_TAG}|" ./k8s/helm-chart/values.yaml
-
-                        # Update frontend tag
-                        sed -i "/frontend:/,/tag:/s|tag: .*|tag: ${IMAGE_TAG}|" ./k8s/helm-chart/values.yaml
+                        sed -i "s|tag:.*# backend-tag|tag: ${IMAGE_TAG} # backend-tag|g" ./k8s/helm-chart/values.yaml
+                        sed -i "s|tag:.*# frontend-tag|tag: ${IMAGE_TAG} # frontend-tag|g" ./k8s/helm-chart/values.yaml
 
                         if git diff --quiet && git diff --cached --quiet; then
                           echo "No changes to commit"
