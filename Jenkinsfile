@@ -9,11 +9,12 @@ pipeline {
         ECR_BACKEND_NAME   = 'my-app-backend-repo'
         ECR_FRONTEND_NAME  = 'my-app-frontend-repo'
         IMAGE_TAG          = "${env.BUILD_NUMBER}"
+        
         BACKEND_REPO_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND_NAME}"
         FRONTEND_REPO_URL  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND_NAME}"
 
         S3_REPORTS_BUCKET  = "fp-statefile-bucket-${AWS_ACCOUNT_ID}"
-        PATH = "${env.WORKSPACE}/bin:${env.PATH}"
+        PATH               = "${env.WORKSPACE}/bin:${env.PATH}"
     }
 
     stages {
@@ -44,7 +45,7 @@ pipeline {
                 sh """
                     aws ecr describe-repositories --repository-names ${ECR_BACKEND_NAME} --region ${AWS_REGION} > /dev/null 2>&1 || \
                     aws ecr create-repository --repository-name ${ECR_BACKEND_NAME} --region ${AWS_REGION} --image-scanning-configuration scanOnPush=true
-                    
+
                     aws ecr describe-repositories --repository-names ${ECR_FRONTEND_NAME} --region ${AWS_REGION} > /dev/null 2>&1 || \
                     aws ecr create-repository --repository-name ${ECR_FRONTEND_NAME} --region ${AWS_REGION} --image-scanning-configuration scanOnPush=true
                 """
@@ -74,7 +75,11 @@ pipeline {
                     }
 
                     dir('frontend') {
-                        sh "docker build -t ${FRONTEND_REPO_URL}:${IMAGE_TAG} ."
+                        sh """
+                            docker build \
+                              --build-arg REACT_APP_API_URL=http://my-app-backend:3001/api \
+                              -t ${FRONTEND_REPO_URL}:${IMAGE_TAG} .
+                        """
                         sh "trivy image --format table --exit-code 0 --severity HIGH,CRITICAL ${FRONTEND_REPO_URL}:${IMAGE_TAG} > frontend_scan_report.txt"
                         sh "aws s3 cp frontend_scan_report.txt s3://${S3_REPORTS_BUCKET}/frontend-report-${IMAGE_TAG}.txt"
                         sh "docker push ${FRONTEND_REPO_URL}:${IMAGE_TAG}"
@@ -105,9 +110,8 @@ pipeline {
                           git push origin main
                         fi
 
-                        # Create Git tag and push it
-                        git tag -a v${IMAGE_TAG} -m "Release version ${IMAGE_TAG}"
-                        git push origin v${IMAGE_TAG}
+                        git tag -a v${IMAGE_TAG} -m "Release version ${IMAGE_TAG}" || true
+                        git push origin v${IMAGE_TAG} || true
                     '''
                 }
             }
