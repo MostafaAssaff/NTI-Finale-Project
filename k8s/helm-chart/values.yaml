@@ -43,7 +43,7 @@ service:
   frontend:
     type: LoadBalancer
     port: 80
-    targetPort: 80
+    targetPort: 8080
 
 # Ingress configuration
 ingress:
