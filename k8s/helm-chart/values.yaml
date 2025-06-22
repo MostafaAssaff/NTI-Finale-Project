@@ -1,10 +1,9 @@
-# values.yaml
-
+# Backend configuration
 backend:
   replicaCount: 2
   image:
     repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-backend-repo
-    tag: 64
+    tag:  # backend-tag gets replaced by Jenkins
     pullPolicy: Always
   port: 3001
   resources:
@@ -20,15 +19,14 @@ backend:
   serviceAccount:
     name: backend-sa
 
+# Frontend configuration
 frontend:
   replicaCount: 2
   image:
     repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-frontend-repo
-    tag: 65
+    tag:  # frontend-tag gets replaced by Jenkins
     pullPolicy: Always
   port: 8080
-  env:
-    REACT_APP_API_URL: "http://my-app-backend:3001/api"
   resources:
     limits:
       cpu: 250m
@@ -37,6 +35,7 @@ frontend:
       cpu: 100m
       memory: 128Mi
 
+# Service configuration
 service:
   backend:
     type: LoadBalancer
@@ -46,6 +45,7 @@ service:
     port: 80
     targetPort: 80
 
+# Ingress configuration
 ingress:
   enabled: false
   className: ""
@@ -61,6 +61,7 @@ ingress:
           service: backend
   tls: []
 
+# Auto-scaling configuration
 autoscaling:
   enabled: false
   minReplicas: 1
