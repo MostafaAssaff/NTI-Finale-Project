@@ -1,3 +1,5 @@
+---
+# deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,12 +16,13 @@ spec:
       labels:
         app: {{ include "my-app.name" . }}-backend
     spec:
+      serviceAccountName: {{ .Values.backend.serviceAccount.name }}
       containers:
       - name: backend
         image: {{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}
         imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
         ports:
-        - containerPort: 3001  # Match your server.js port
+        - containerPort: 3001
           name: http
           protocol: TCP
         env:
@@ -27,14 +30,10 @@ spec:
           value: "production"
         - name: PORT
           value: "3001"
-        # Add your AWS/DynamoDB environment variables here
         - name: AWS_REGION
           value: {{ .Values.backend.aws.region | default "us-west-2" }}
         - name: DYNAMODB_TABLE_NAME
           value: {{ .Values.backend.aws.dynamoTableName | default "todos" }}
-        # If using AWS IAM roles for service accounts, uncomment:
-        # - name: AWS_ROLE_ARN
-        #   value: {{ .Values.backend.aws.roleArn }}
         resources:
           limits:
             cpu: {{ .Values.backend.resources.limits.cpu }}
@@ -80,7 +79,6 @@ spec:
           name: http
           protocol: TCP
         env:
-        # Set the backend API URL for the frontend
         - name: REACT_APP_API_URL
           value: "http://{{ include "my-app.fullname" . }}-backend:3001/api"
         resources:
@@ -102,3 +100,36 @@ spec:
             port: {{ .Values.frontend.port }}
           initialDelaySeconds: 5
           periodSeconds: 5
+---
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "my-app.fullname" . }}-backend
+  labels:
+    app: {{ include "my-app.name" . }}-backend
+spec:
+  type: {{ .Values.service.backend.type }}
+  ports:
+    - port: 3001
+      targetPort: 3001
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "my-app.name" . }}-backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "my-app.fullname" . }}-frontend
+  labels:
+    app: {{ include "my-app.name" . }}-frontend
+spec:
+  type: {{ .Values.service.frontend.type }}
+  ports:
+    - port: {{ .Values.service.frontend.port }}
+      targetPort: {{ .Values.service.frontend.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "my-app.name" . }}-frontend
