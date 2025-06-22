@@ -1,5 +1,4 @@
----
-# deployment.yaml
+# backend deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -24,7 +23,6 @@ spec:
         ports:
         - containerPort: 3001
           name: http
-          protocol: TCP
         env:
         - name: NODE_ENV
           value: "production"
@@ -34,26 +32,10 @@ spec:
           value: {{ .Values.backend.aws.region | default "us-west-2" }}
         - name: DYNAMODB_TABLE_NAME
           value: {{ .Values.backend.aws.dynamoTableName | default "todos" }}
-        resources:
-          limits:
-            cpu: {{ .Values.backend.resources.limits.cpu }}
-            memory: {{ .Values.backend.resources.limits.memory }}
-          requests:
-            cpu: {{ .Values.backend.resources.requests.cpu }}
-            memory: {{ .Values.backend.resources.requests.memory }}
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 3001
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 3001
-          initialDelaySeconds: 5
-          periodSeconds: 5
+
 ---
+
+# frontend deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -77,27 +59,3 @@ spec:
         ports:
         - containerPort: {{ .Values.frontend.port }}
           name: http
-          protocol: TCP
-        env:
-        - name: REACT_APP_API_URL
-          value: "http://{{ include "my-app.fullname" . }}-backend:3001/api"
-        resources:
-          limits:
-            cpu: {{ .Values.frontend.resources.limits.cpu }}
-            memory: {{ .Values.frontend.resources.limits.memory }}
-          requests:
-            cpu: {{ .Values.frontend.resources.requests.cpu }}
-            memory: {{ .Values.frontend.resources.requests.memory }}
-        livenessProbe:
-          httpGet:
-            path: /
-            port: {{ .Values.frontend.port }}
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /
-            port: {{ .Values.frontend.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
----
