@@ -97,13 +97,17 @@ pipeline {
                         sed -i "s|tag:.*# backend-tag|tag: ${IMAGE_TAG} # backend-tag|g" ./k8s/helm-chart/values.yaml
                         sed -i "s|tag:.*# frontend-tag|tag: ${IMAGE_TAG} # frontend-tag|g" ./k8s/helm-chart/values.yaml
 
-                        if git diff --quiet && git diff --cached --quiet; then
+                        git add ./k8s/helm-chart/values.yaml
+                        if git diff --cached --quiet; then
                           echo "No changes to commit"
                         else
-                          git add ./k8s/helm-chart/values.yaml
                           git commit -m "ci: Update image tags to version ${IMAGE_TAG}"
                           git push origin main
                         fi
+
+                        # Create Git tag and push it
+                        git tag -a v${IMAGE_TAG} -m "Release version ${IMAGE_TAG}"
+                        git push origin v${IMAGE_TAG}
                     '''
                 }
             }
