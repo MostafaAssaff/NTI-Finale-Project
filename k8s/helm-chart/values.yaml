@@ -42,8 +42,8 @@ service:
     port: 3001
   frontend:
     type: LoadBalancer
-    port: 80
-    targetPort: 80
+    port: 8080
+    targetPort: 8080
 
 # Ingress configuration
 ingress:
