@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "my-app.fullname" . }}-backend
+  labels:
+    app: {{ include "my-app.name" . }}-backend
+spec:
+  type: {{ .Values.service.backend.type }}
+  ports:
+    - port: 3001
+      targetPort: 3001
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "my-app.name" . }}-backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "my-app.fullname" . }}-frontend
+  labels:
+    app: {{ include "my-app.name" . }}-frontend
+spec:
+  type: {{ .Values.service.frontend.type }}
+  ports:
+    - port: {{ .Values.service.frontend.port }}
+      targetPort: {{ .Values.service.frontend.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "my-app.name" . }}-frontend

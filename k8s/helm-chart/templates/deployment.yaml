@@ -1,0 +1,61 @@
+# backend deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "my-app.fullname" . }}-backend
+  labels:
+    app: {{ include "my-app.name" . }}-backend
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "my-app.name" . }}-backend
+  template:
+    metadata:
+      labels:
+        app: {{ include "my-app.name" . }}-backend
+    spec:
+      serviceAccountName: {{ .Values.backend.serviceAccount.name }}
+      containers:
+      - name: backend
+        image: {{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}
+        imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+        ports:
+        - containerPort: 3001
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3001"
+        - name: AWS_REGION
+          value: {{ .Values.backend.aws.region | default "us-west-2" }}
+        - name: DYNAMODB_TABLE_NAME
+          value: {{ .Values.backend.aws.dynamoTableName | default "todos" }}
+
+---
+
+# frontend deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "my-app.fullname" . }}-frontend
+  labels:
+    app: {{ include "my-app.name" . }}-frontend
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "my-app.name" . }}-frontend
+  template:
+    metadata:
+      labels:
+        app: {{ include "my-app.name" . }}-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: {{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}
+        imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.frontend.port }}
+          name: http

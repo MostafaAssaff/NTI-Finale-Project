@@ -1,0 +1,59 @@
+# This file contains the ArgoCD installation manifests
+# We'll use the official ArgoCD installation
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-install-script
+  namespace: argocd
+data:
+  install.sh: |
+    #!/bin/bash
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: argocd-installer
+  namespace: argocd
+spec:
+  template:
+    spec:
+      serviceAccountName: argocd-installer
+      containers:
+      - name: installer
+        image: bitnami/kubectl:latest
+        command: ["/bin/sh"]
+        args:
+          - -c
+          - |
+            kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+      restartPolicy: OnFailure
+  backoffLimit: 3
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-installer
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-installer
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-installer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-installer
+subjects:
+- kind: ServiceAccount
+  name: argocd-installer
+  namespace: argocd

@@ -1,0 +1,25 @@
+# Stage 1: Build React app
+FROM node:18-alpine as build
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --silent
+
+COPY . .
+
+# Accept API URL as build arg
+ARG REACT_APP_API_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ENV NODE_OPTIONS=--openssl-legacy-provider
+
+# 🔥 Inject API URL into React build via .env
+RUN echo "REACT_APP_API_URL=$REACT_APP_API_URL" > .env && npm run build
+
+# Stage 2: Serve with nginx (unprivileged version)
+FROM nginxinc/nginx-unprivileged:alpine
+
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY --from=build /app/build /usr/share/nginx/html
+
+EXPOSE 8080
+CMD ["nginx", "-g", "daemon off;"]
