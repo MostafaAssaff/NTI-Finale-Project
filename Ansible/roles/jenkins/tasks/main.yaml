@@ -1,0 +1,65 @@
+---
+- name: 1. [Cleanup] Ensure no old source list exists
+  become: yes
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/jenkins.list
+    state: absent
+
+- name: 2. Install prerequisites (Java 17, etc.)
+  become: yes
+  ansible.builtin.apt:
+    name:
+      - openjdk-17-jre
+      - gpg
+      - curl
+    state: present
+    update_cache: yes
+
+- name: 3. Add Jenkins GPG key directly to apt trusted keys
+  become: yes
+  ansible.builtin.shell: "curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | apt-key add -"
+
+- name: 4. Add the Jenkins repository (simplified definition)
+  become: yes
+  ansible.builtin.apt_repository:
+    repo: "deb https://pkg.jenkins.io/debian-stable binary/"
+    state: present
+    filename: jenkins
+
+- name: 5. Install Jenkins
+  become: yes
+  ansible.builtin.apt:
+    name: jenkins
+    state: present
+
+- name: 6. Create systemd override directory for Jenkins
+  become: yes
+  ansible.builtin.file:
+    path: /etc/systemd/system/jenkins.service.d
+    state: directory
+    mode: '0755'
+
+- name: 7. Configure Jenkins to use Java 17
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/jenkins.service.d/override.conf
+    content: |
+      [Service]
+      Environment="JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
+    mode: '0644'
+  notify: Reload and Restart Jenkins
+
+- name: 8. Ensure Jenkins is started and enabled
+  become: yes
+  ansible.builtin.systemd:
+    name: jenkins
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: 9. Wait for Jenkins to be fully up
+  ansible.builtin.wait_for:
+    port: 8080
+    host: 127.0.0.1
+    delay: 30
+    timeout: 300
