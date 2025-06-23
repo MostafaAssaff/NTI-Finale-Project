@@ -1,0 +1,24 @@
+{
+  "agent": {
+    "metrics_collection_interval": 60
+  },
+  "metrics": {
+    "metrics_collected": {
+      "cpu": {
+        "measurement": ["cpu_usage_idle", "cpu_usage_user", "cpu_usage_system"]
+      },
+      "disk": {
+        "measurement": ["used_percent"],
+        "resources": ["/"]
+      },
+      "mem": {
+        "measurement": ["mem_used_percent"]
+      }
+    }
+  },
+  "http_server": {
+    "enabled": true,
+    "listen_address": "127.0.0.1:51678",
+    "metrics_path": "/metrics"
+  }
+}
