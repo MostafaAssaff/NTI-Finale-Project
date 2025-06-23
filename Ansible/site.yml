@@ -1,0 +1,13 @@
+# site.yml
+---
+- name: Setup Jenkins Server from scratch
+  hosts: jenkins_server
+  become: yes
+  roles:
+    - jenkins
+
+- name: Install CloudWatch Agent on all instances
+  hosts: all_ec2_instances
+  become: yes
+  roles:
+    - cloudwatch_agent
