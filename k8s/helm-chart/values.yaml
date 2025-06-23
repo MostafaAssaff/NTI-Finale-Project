@@ -3,7 +3,7 @@ backend:
   replicaCount: 2
   image:
     repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-backend-repo
-    tag: 76 # backend-tag gets replaced by Jenkins
+    tag: 77 # backend-tag gets replaced by Jenkins
     pullPolicy: Always
   port: 3001
   resources:
@@ -24,7 +24,7 @@ frontend:
   replicaCount: 2
   image:
     repository: 889818960214.dkr.ecr.us-west-2.amazonaws.com/my-app-frontend-repo
-    tag: 76 # frontend-tag gets replaced by Jenkins
+    tag: 77 # frontend-tag gets replaced by Jenkins
     pullPolicy: Always
   port: 8080
   resources:
